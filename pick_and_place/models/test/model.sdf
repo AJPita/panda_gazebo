@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<sdf version='1.6'>
+
+ <include>
+      <uri>model://pick_and_place/models/bin_red</uri>
+      <pose>-0.5 -0.27 0.11 0 0 0</pose>
+      <static>1</static>
+     </include>
+
+    
+  
+
+ 
+  <joint name="cameras" type="fixed">
+   <child>
+block_blue::link
+ 
+      </child>
+      <parent>
+      
+         bin_red
+      </parent>
+
+    </joint>
+
+     <include>
+      <uri>model://pick_and_place/models/block_blue</uri>
+      <pose>0.0 0. 0.5 0 0 0</pose>
+    </include>
+
+
+    
+  
+
+  </sdf> 
