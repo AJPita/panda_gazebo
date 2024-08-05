@@ -1,0 +1,5 @@
+uint8  start
+---
+uint8 count_detect
+---
+uint8 pick_dect

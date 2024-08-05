@@ -154,7 +154,7 @@
       
       <parent link="${arm_id}_link9"/>
       <child link="${arm_id}_link10"/>
-      <origin rpy=" 0 ${pi/2} 0" xyz="0.1 0 0.0"/>
+      <origin rpy=" 0 ${pi/2} 0" xyz="0.0 0 0.0"/>
     </joint>
     
     
