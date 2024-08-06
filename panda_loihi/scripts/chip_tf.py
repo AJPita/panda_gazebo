@@ -19,13 +19,14 @@ def handle(msg):
     #br2.sendTransform((data[0].x_world,data[0].y_world,data[0].z_world),tf.transformations.quaternion_from_euler(0,0,0),rospy.Time.now(),"/chip2","/world")
     #br2.sendTransform((data[0].x_world,data[0].y_world,data[0].z_world),tf.transformations.quaternion_from_euler(0,0,2),rospy.Time.now(),"/chip2","/world")
     
-if __name__=="__main__":
-    rospy.init_node("tf_test")
+#if __name__=="__main__":
+def tf_main():
+    #rospy.init_node("tf_test")
     
-    rate=rospy.Rate(10)
+    #rate=rospy.Rate(10)
   
     sub=rospy.Subscriber('/object_detection2', DetectedObjectsStamped,handle)
-    rospy.spin()
+    #rospy.spin()
 
 
 

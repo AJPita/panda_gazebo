@@ -7,6 +7,7 @@ about their position, dimensions and color.
 Author: Elena Oikonomou
 Date:   Fall 2023
 """
+import time
 
 import numpy as np
 import cv2, cv_bridge
@@ -18,12 +19,15 @@ from gazebo_msgs.srv import GetModelState
 from image_geometry import PinholeCameraModel
 from sensor_msgs.msg import Image, CameraInfo
 from typing import List, Tuple
-from panda_loihi_msg.msg import detectionAction
+from panda_loihi_msg.msg import detectionAction,detectionResult,detectionFeedback
 from pick_and_place.msg import DetectedObjectsStamped, DetectedObject
+import chip_tf
+
 
 
 class VisionObjectDetector:
     def __init__(self):
+        self.flag=False
         
         self.color_ranges = {"blue": [np.array([110,50,50]), np.array([130,255,255])],
                              "green": [np.array([36, 25, 25]), np.array([70, 255,255])],
@@ -39,6 +43,8 @@ class VisionObjectDetector:
         self.pin_cam = self.get_pinhole_camera_model()                      # Pinhole camera model of the kinect camera
         self.depth_image = self.get_depth_image()
         self.workbench_depth = self.get_workbench_depth()
+        self.br=tf.TransformBroadcaster()
+        self.br2=tf.TransformBroadcaster()
         
         
         self.image_sub = rospy.Subscriber('/camera/color/image_raw', Image, self.image_callback)
@@ -138,8 +144,8 @@ class VisionObjectDetector:
             u = self.image_width - 1
         if v >= self.image_height:
             v = self.image_height - 1
-        print("values")
-        print( self.depth_image[int(v), int(u)])
+        
+
         #print(self.depth_image[222:230, 129:160])
         return self.depth_image[int(v), int(u)]
         
@@ -197,8 +203,7 @@ class VisionObjectDetector:
         # Get point in cartesian coordinates wrt world frame
         X_world, Y_world, Z_world = self.convert_point_from_camera_to_world(X, Y, Z)
         #X_world, Y_world, Z_world = self.convert_point_from_world_to_camera(X, Y, Z)
-        #print(X)
-        print(X)
+       
         return X_world, Y_world, Z_world,X,Y,Z
        
     def get_pixel_from_3D_point(self, x_world: float, y_world: float, z_world: float) -> Tuple[float]:
@@ -263,6 +268,22 @@ class VisionObjectDetector:
     def publish_detected_objects(self) -> None:
         """Publishes information about the detected objects."""
 
+           
+        self.T_c_w, self.T_w_c = self.get_camera_homogeneous_tranforms()    # Homogeneous transform of camera frame wrt world frame and its inverse
+        self.bridge = cv_bridge.CvBridge()                                  # To convert ROS image messages to OpenCV images
+        self.image_height, self.image_width = self.get_image_dimensions()
+        self.pin_cam = self.get_pinhole_camera_model()                      # Pinhole camera model of the kinect camera
+        self.depth_image = self.get_depth_image()
+        self.workbench_depth = self.get_workbench_depth()
+        
+
+        blocks = DetectedObjectsStamped() 
+        blocks.header.stamp = rospy.Time.now()
+        blocks.detected_objects = []
+        blocks2 = DetectedObjectsStamped() 
+        blocks2.header.stamp = rospy.Time.now()
+        blocks2.detected_objects = []
+
         blocks = DetectedObjectsStamped() 
         blocks.header.stamp = rospy.Time.now()
         blocks.detected_objects = []
@@ -292,9 +313,31 @@ class VisionObjectDetector:
 
             blocks.detected_objects.append(detected_block)
             blocks2.detected_objects.append(detected_block2)
-        print(detected_block)
-        self.detected_objects_pub.publish(blocks)
-        self.detected_objects_pub2.publish(blocks2)
+       
+
+        
+    
+        #result=detectionResult()
+        #result.count_detect=2
+        #time.sleep(10)
+       
+        
+
+        #if str(detected_block2.x_world)!='nan' and not self.flag:
+        if str(detected_block2.x_world)!='nan':
+            
+            #server.set_succeeded(result)
+            print('detecto')
+            print(blocks2)
+            self.flag=True
+            flag=False
+            self.detected_objects_pub.publish(blocks)
+            self.detected_objects_pub2.publish(blocks2)
+            self.br.sendTransform((blocks2.detected_objects[1].y_world,blocks2.detected_objects[1].x_world,blocks2.detected_objects[1].z_world),tf.transformations.quaternion_from_euler(0,3.14,0),rospy.Time.now(),"/chip1","/panda_EE")
+            self.br2.sendTransform((blocks2.detected_objects[0].y_world,blocks2.detected_objects[0].x_world,blocks2.detected_objects[0].z_world),tf.transformations.quaternion_from_euler(0,3.14,0),rospy.Time.now(),"/chip2","/panda_EE")
+     
+           
+           
 
     def get_box_dimensions(self, cx: float, cy: float, w: float, h: float) -> Tuple[float]:
         """Computes the cartesian width and length of the box from pixel coordinates.
@@ -320,13 +363,30 @@ class VisionObjectDetector:
         mask = self.get_mask(hsv, color)
         contours, _ = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         return contours
-def    do_detection():
-    VisionObjectDetector()
+def  do_detection(goal):
+    print('iniciando servicio2')
+    
+    result=detectionResult()
+    result.count_detect=2
+    val=VisionObjectDetector()
+    #time.sleep(10)
+    while not val.flag:
+        feedback=detectionFeedback()
+        feedback.pick_dect=1
+        server.publish_feedback(feedback)
+        time.sleep(1)
+   
+    #print(goal)
+    if val.flag:
+        server.set_succeeded(result)
+    
 
 
 if __name__ == "__main__": 
     rospy.init_node("vision_object_detector_action", anonymous=False)
-    
+   
     server=actionlib.SimpleActionServer('detectionAction',detectionAction,do_detection,False)
+
     server.start()
+    print('iniciando servicio')
     rospy.spin()
